@@ -20,6 +20,7 @@ model User {
   role      Role     @default(STUDENT)
   enrollments Enrollment[]
   ownedClassrooms Classroom[]
+  taughtClassSubjects ClassSubject[]
   createdAt DateTime  @default(now())
 }
 
@@ -53,6 +54,8 @@ model ClassSubject {
   description String?
   classroomId Int
   classroom   Classroom @relation(fields: [classroomId], references: [id])
+  teacherId   Int?
+  teacher     User?     @relation(fields: [teacherId], references: [id])
 }
 
 model Enrollment {

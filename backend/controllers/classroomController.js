@@ -137,14 +137,33 @@ const getStudentEnrollments = async (req, res) => {
 
 // --- SHARED ---
 const getMyClassrooms = async (req, res) => {
-    // If teacher, return owned. If student, return enrolled.
-    // For simplicity, we'll return both or split by query param logic later.
-    // Here returning owned classrooms for teachers.
     try {
         const classrooms = await prisma.classroom.findMany({
-            where: { teacherId: req.userId }
+            where: { teacherId: req.userId },
+            include: {
+                _count: {
+                    select: {
+                        students: { where: { status: 'APPROVED' } }
+                    }
+                },
+                students: {
+                    where: { status: 'PENDING' },
+                    select: { id: true }
+                }
+            }
         });
-        res.json(classrooms);
+
+        // Format the response to include counts directly
+        const formattedClassrooms = classrooms.map(c => ({
+            id: c.id,
+            name: c.name,
+            code: c.code,
+            createdAt: c.createdAt,
+            enrolledCount: c._count.students,
+            pendingCount: c.students.length
+        }));
+
+        res.json(formattedClassrooms);
     } catch (error) {
         res.status(500).json({ message: error.message });
     }

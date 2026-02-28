@@ -116,4 +116,127 @@ const getCollegeStats = async (req, res) => {
     }
 }
 
-module.exports = { createTeacher, getCollegeTeachers, getCollegeStudents, getCollegeStats };
+const createCollegeClassroom = async (req, res) => {
+    const { name, teacherId } = req.body;
+    try {
+        const admin = await prisma.user.findUnique({ where: { id: req.userId } });
+        if (!admin?.collegeId) return res.status(403).json({ message: "No college found" });
+
+        const teacher = await prisma.user.findFirst({
+            where: { id: parseInt(teacherId), collegeId: admin.collegeId, role: 'TEACHER' }
+        });
+
+        if (!teacher) return res.status(404).json({ message: "Teacher not found or doesn't belong to your college" });
+
+        const crypto = require('crypto');
+        const code = crypto.randomBytes(3).toString('hex').toUpperCase();
+
+        const classroom = await prisma.classroom.create({
+            data: {
+                name,
+                code,
+                teacherId: teacher.id
+            }
+        });
+        res.status(201).json(classroom);
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
+}
+
+const getCollegeClassrooms = async (req, res) => {
+    try {
+        const admin = await prisma.user.findUnique({ where: { id: req.userId } });
+        if (!admin?.collegeId) return res.status(403).json({ message: "No college found" });
+
+        const classrooms = await prisma.classroom.findMany({
+            where: {
+                teacher: { collegeId: admin.collegeId }
+            },
+            include: {
+                teacher: { select: { name: true, email: true } },
+                subjects: {
+                    include: {
+                        teacher: { select: { name: true, email: true } }
+                    }
+                },
+                _count: {
+                    select: { students: { where: { status: 'APPROVED' } } }
+                }
+            },
+            orderBy: { createdAt: 'desc' }
+        });
+
+        const formatted = classrooms.map(c => ({
+            id: c.id,
+            name: c.name,
+            code: c.code,
+            teacherName: c.teacher?.name || 'Unknown',
+            enrolledCount: c._count.students,
+            subjects: c.subjects.map(s => ({
+                id: s.id,
+                name: s.name,
+                description: s.description,
+                teacherName: s.teacher?.name || 'Unassigned',
+                teacherId: s.teacherId
+            })),
+            createdAt: c.createdAt
+        }));
+
+        res.json(formatted);
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
+}
+
+const addClassSubject = async (req, res) => {
+    const { classroomId } = req.params;
+    const { name, description, teacherId } = req.body;
+
+    try {
+        const admin = await prisma.user.findUnique({ where: { id: req.userId } });
+        if (!admin?.collegeId) return res.status(403).json({ message: "No college found" });
+
+        // Ensure classroom belongs to this college
+        const classroom = await prisma.classroom.findFirst({
+            where: {
+                id: parseInt(classroomId),
+                teacher: { collegeId: admin.collegeId }
+            }
+        });
+
+        if (!classroom) return res.status(404).json({ message: "Classroom not found" });
+
+        // Validate teacher if provided
+        if (teacherId) {
+            const validTeacher = await prisma.user.findFirst({
+                where: { id: parseInt(teacherId), collegeId: admin.collegeId, role: 'TEACHER' }
+            });
+            if (!validTeacher) return res.status(400).json({ message: "Invalid teacher assignment" });
+        }
+
+        const newSubject = await prisma.classSubject.create({
+            data: {
+                name,
+                description,
+                classroomId: parseInt(classroomId),
+                teacherId: teacherId ? parseInt(teacherId) : null
+            },
+            include: {
+                teacher: { select: { name: true, email: true } }
+            }
+        });
+
+        res.status(201).json({
+            id: newSubject.id,
+            name: newSubject.name,
+            description: newSubject.description,
+            teacherName: newSubject.teacher?.name || 'Unassigned',
+            teacherId: newSubject.teacherId
+        });
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
+}
+
+module.exports = { createTeacher, getCollegeTeachers, getCollegeStudents, getCollegeStats, createCollegeClassroom, getCollegeClassrooms, addClassSubject };
