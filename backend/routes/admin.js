@@ -1,17 +1,19 @@
 const express = require('express');
 const router = express.Router();
-const { createCollegeWithAdmin, getAllColleges, getAdminStats } = require('../controllers/adminController');
+const { getStats, getAllUsers, updateUserRole, getRecentActivity } = require('../controllers/adminController');
 const authMiddleware = require('../middleware/authMiddleware');
 
-// Middleware to check if user is ADMIN
-const requireAdmin = async (req, res, next) => {
-    // Ideally fetch user and check role. For now assuming authMiddleware sets userId.
-    // In production, verify role from DB here.
+// Middleware to check if user is admin
+const isAdmin = (req, res, next) => {
+    if (req.userRole !== 'admin') {
+        return res.status(403).json({ message: 'Access denied. Admins only.' });
+    }
     next();
 };
 
-router.post('/colleges', authMiddleware, createCollegeWithAdmin);
-router.get('/colleges', authMiddleware, getAllColleges);
-router.get('/stats', authMiddleware, getAdminStats);
+router.get('/stats', authMiddleware, isAdmin, getStats);
+router.get('/users', authMiddleware, isAdmin, getAllUsers);
+router.get('/activity', authMiddleware, isAdmin, getRecentActivity);
+router.post('/role/:id', authMiddleware, isAdmin, updateUserRole);
 
 module.exports = router;

@@ -8,64 +8,18 @@ datasource db {
 }
 
 model User {
-  id        Int       @id @default(autoincrement())
-  email     String    @unique
-  password  String
-  name      String
-  course    String?
-  semester  String?
-  subjects  Subject[]
-  collegeId Int?
-  college   College? @relation(fields: [collegeId], references: [id])
-  role      Role     @default(STUDENT)
-  enrollments Enrollment[]
-  ownedClassrooms Classroom[]
-  taughtClassSubjects ClassSubject[]
-  createdAt DateTime  @default(now())
-}
-
-enum Role {
-  STUDENT
-  TEACHER
-  ADMIN
-  COLLEGE_ADMIN
-}
-
-enum EnrollmentStatus {
-  PENDING
-  APPROVED
-  REJECTED
-}
-
-model Classroom {
-  id        Int      @id @default(autoincrement())
-  name      String
-  code      String   @unique
-  teacherId Int
-  teacher   User     @relation(fields: [teacherId], references: [id])
-  subjects  ClassSubject[]
-  students  Enrollment[]
-  createdAt DateTime @default(now())
-}
-
-model ClassSubject {
-  id          Int       @id @default(autoincrement())
-  name        String
-  description String?
-  classroomId Int
-  classroom   Classroom @relation(fields: [classroomId], references: [id])
-  teacherId   Int?
-  teacher     User?     @relation(fields: [teacherId], references: [id])
-}
-
-model Enrollment {
-  id          Int              @id @default(autoincrement())
-  studentId   Int
-  student     User             @relation(fields: [studentId], references: [id])
-  classroomId Int
-  classroom   Classroom        @relation(fields: [classroomId], references: [id])
-  status      EnrollmentStatus @default(PENDING)
-  createdAt   DateTime         @default(now())
+  id               Int               @id @default(autoincrement())
+  email            String            @unique
+  password         String
+  name             String
+  course           String?
+  semester         String?
+  subjects         Subject[]
+  role             String            @default("student")
+  dailyStudyHours  Float?            @default(4.0)
+  focusMode        Boolean           @default(false)
+  pomodoroSessions PomodoroSession[]
+  createdAt        DateTime          @default(now())
 }
 
 model Subject {
@@ -79,8 +33,6 @@ model Subject {
   exams         Exam[]
   studySessions StudySession[]
   topics        Topic[]
-  teacherId     Int?
-  teacher       Teacher?        @relation(fields: [teacherId], references: [id])
   createdAt     DateTime        @default(now())
 }
 
@@ -95,33 +47,25 @@ model Topic {
   id          Int      @id @default(autoincrement())
   name        String
   isCompleted Boolean  @default(false)
+  difficulty  Int      @default(3)
   subjectId   Int
   subject     Subject  @relation(fields: [subjectId], references: [id])
 }
 
 model StudySession {
-  id        Int      @id @default(autoincrement())
-  startTime DateTime
-  endTime   DateTime
-  subjectId Int
-  subject   Subject  @relation(fields: [subjectId], references: [id])
-  isDone    Boolean  @default(false)
+  id         Int      @id @default(autoincrement())
+  startTime  DateTime
+  endTime    DateTime
+  subjectId  Int
+  subject    Subject  @relation(fields: [subjectId], references: [id])
+  isDone     Boolean  @default(false)
+  focusTopic String?
 }
 
-model College {
-  id        Int       @id @default(autoincrement())
-  name      String
-  location  String?
-  users     User[]
-  teachers  Teacher[]
-}
-
-model Teacher {
-  id             Int       @id @default(autoincrement())
-  name           String
-  email          String?
-  specialization String?
-  collegeId      Int
-  college        College   @relation(fields: [collegeId], references: [id])
-  subjects       Subject[]
+model PomodoroSession {
+  id              Int      @id @default(autoincrement())
+  userId          Int
+  user            User     @relation(fields: [userId], references: [id])
+  durationMinutes Int      @default(25)
+  completedAt     DateTime @default(now())
 }

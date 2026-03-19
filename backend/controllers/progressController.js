@@ -17,8 +17,9 @@ const toggleTopicCompletion = async (req, res) => {
 
 const getOverallProgress = async (req, res) => {
     try {
+        const userId = req.userId;
         const subjects = await prisma.subject.findMany({
-            where: { userId: req.userId },
+            where: { userId },
             include: { topics: true },
         });
 
@@ -30,10 +31,42 @@ const getOverallProgress = async (req, res) => {
 
         const percentage = totalTopics === 0 ? 0 : Math.round((completedTopics / totalTopics) * 100);
 
-        res.json({ totalTopics, completedTopics, percentage });
+        // Fetch recent Pomodoro sessions for the past week
+        const oneWeekAgo = new Date();
+        oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
+        
+        const sessions = await prisma.pomodoroSession.findMany({
+            where: {
+                userId,
+                completedAt: { gte: oneWeekAgo }
+            }
+        });
+        
+        const totalFocusMinutesThisWeek = sessions.reduce((acc, s) => acc + s.durationMinutes, 0);
+        const streakDays = totalFocusMinutesThisWeek > 0 ? 1 : 0; // simplified streak
+
+        res.json({ totalTopics, completedTopics, percentage, totalFocusMinutesThisWeek, streakDays });
     } catch (error) {
         res.status(500).json({ message: error.message });
     }
 };
 
-module.exports = { toggleTopicCompletion, getOverallProgress };
+const logPomodoroSession = async (req, res) => {
+    try {
+        const userId = req.userId;
+        const { durationMinutes } = req.body;
+        
+        const session = await prisma.pomodoroSession.create({
+            data: {
+                userId,
+                durationMinutes: durationMinutes || 25
+            }
+        });
+        
+        res.status(201).json(session);
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
+};
+
+module.exports = { toggleTopicCompletion, getOverallProgress, logPomodoroSession };

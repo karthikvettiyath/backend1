@@ -6,13 +6,15 @@
   "scripts": {
     "start": "node index.js",
     "dev": "nodemon index.js",
+    "build": "prisma generate",
     "test": "echo \"Error: no test specified\" && exit 1"
+
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "@prisma/client": "^5.14.0",
+    "@prisma/client": "^5.22.0",
     "axios": "^1.13.5",
     "bcrypt": "^6.0.0",
     "cors": "^2.8.6",
@@ -22,7 +24,8 @@
     "jsonwebtoken": "^9.0.3",
     "nodemon": "^3.1.11",
     "pg": "^8.18.0",
-    "prisma": "^5.14.0",
+    "prisma": "^5.22.0",
+    "serverless-http": "^4.0.0",
     "sqlite3": "^5.1.7"
   }
 }

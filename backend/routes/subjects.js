@@ -1,14 +1,17 @@
 const express = require('express');
-const { getSubjects, addSubject, updateSubject, deleteSubject } = require('../controllers/subjectController');
+const subjectController = require('../controllers/subjectController');
 const authMiddleware = require('../middleware/authMiddleware');
 
 const router = express.Router();
 
 router.use(authMiddleware);
 
-router.get('/', getSubjects);
-router.post('/', addSubject);
-router.put('/:id', updateSubject);
-router.delete('/:id', deleteSubject);
+router.get('/', subjectController.getSubjects);
+router.post('/', subjectController.addSubject);
+router.put('/:id', subjectController.updateSubject);
+router.delete('/:id', subjectController.deleteSubject);
+
+router.post('/:id/topics', subjectController.addTopic);
+router.post('/topics/:topicId/toggle', subjectController.toggleTopicStatus);
 
 module.exports = router;
