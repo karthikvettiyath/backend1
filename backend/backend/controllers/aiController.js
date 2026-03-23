@@ -15,13 +15,13 @@ const generateAIStudyPlan = async (req, res) => {
 
     // 1. Fetch User and Data
     const user = await prisma.user.findUnique({ where: { id: userId } });
-    const hoursPerDay = requestedHours || user.dailyStudyHours || 4.0;
+    const hoursPerDay = requestedHours || user.dailyStudyGoal || user.dailyStudyHours || 4.0;
 
     // Update user's preference if provided
-    if (requestedHours && requestedHours !== user.dailyStudyHours) {
+    if (requestedHours && requestedHours !== user.dailyStudyGoal) {
       await prisma.user.update({
         where: { id: userId },
-        data: { dailyStudyHours: parseFloat(requestedHours) },
+        data: { dailyStudyGoal: parseFloat(requestedHours) },
       });
     }
 
@@ -156,4 +156,81 @@ Return ONLY the JSON object.`;
   }
 };
 
-module.exports = { generateAIStudyPlan };
+const chatWithAI = async (req, res) => {
+  try {
+    const userId = req.userId;
+    const { message, history } = req.body;
+
+    if (!message) {
+      return res.status(400).json({ message: "Message is required." });
+    }
+
+    // 1. Fetch User Data for Context
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      include: {
+        subjects: {
+          include: {
+            topics: { where: { isCompleted: false } },
+            exams: { orderBy: { date: "asc" }, take: 1 },
+          },
+        },
+        tasks: { where: { isCompleted: false }, take: 5 },
+      },
+    });
+
+    // 2. Prepare Context
+    const subjectsContext = user.subjects
+      .map((s) => {
+        const topics = s.topics.map((t) => t.name).join(", ");
+        const exam = s.exams.length > 0 ? `Next exam: ${s.exams[0].date}` : "No upcoming exams";
+        return `- ${s.name}: ${topics} (${exam})`;
+      })
+      .join("\n");
+
+    const tasksContext = user.tasks.map((t) => `- ${t.title}`).join("\n");
+
+    const contextPrompt = `You are StudyMate AI, a helpful study assistant. 
+Current Student: ${user.name}
+Course: ${user.course || "Not specified"}
+Semester: ${user.semester || "Not specified"}
+Daily Goal: ${user.dailyStudyGoal} hours
+
+Current Subjects & Pending Topics:
+${subjectsContext || "No subjects added yet."}
+
+Pending Tasks:
+${tasksContext || "No pending tasks."}
+
+Guidelines:
+1. Provide concise, encouraging, and actionable study advice.
+2. Help the student plan their study sessions based on their specific subjects and tasks.
+3. If they ask about their progress, refer to their subjects and topics.
+4. Keep the tone friendly and professional.`;
+
+    const messages = [
+      { role: "system", content: contextPrompt },
+      ...(history || []),
+      { role: "user", content: message },
+    ];
+
+    // 3. Call Groq
+    const completion = await groq.chat.completions.create({
+      messages: messages,
+      model: "llama-3.3-70b-versatile",
+      temperature: 0.7,
+      max_tokens: 1024,
+    });
+
+    const reply = completion.choices[0].message.content;
+
+    res.json({
+      reply: reply,
+    });
+  } catch (error) {
+    console.error("Chat AI Error:", error);
+    res.status(500).json({ message: "Failed to get AI response", error: error.message });
+  }
+};
+
+module.exports = { generateAIStudyPlan, chatWithAI };

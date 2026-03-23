@@ -18,7 +18,9 @@ app.use('/api/studyPlan', require('./routes/studyPlan'));
 app.use('/api/progress', require('./routes/progress'));
 app.use('/api/planner', require('./routes/planner'));
 app.use('/api/ai', require('./routes/ai'));
+app.use('/api/insights', require('./routes/insights'));
 app.use('/api/admin', require('./routes/admin'));
+app.use('/api/tasks', require('./routes/tasks'));
 
 app.get('/', (req, res) => {
     res.send('Study Planner API is running');
